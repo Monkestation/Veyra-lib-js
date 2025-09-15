@@ -20,8 +20,7 @@ export class Users {
     userResolvable: UserResolvable,
     force: boolean = false
   ): Promise<User | undefined> {
-    const isCacheStale =
-      Date.now() - this.lastFetched > this.cacheTTL;
+    const isCacheStale = Date.now() - this.lastFetched > this.cacheTTL;
 
     if (force || this.cache.size === 0 || isCacheStale) {
       await this.getAll();
@@ -43,8 +42,18 @@ export class Users {
   }
 
   async getAll() {
-    const response = await this.client.request<{ users: User[] }>("/api/users");
-    return processUsers(response.users);
+    const { users } = await this.client.request<{ users: User[] }>(
+      `/api/v1/users`
+    );
+
+    this.cache.clear();
+    this.usernameCache.clear();
+    for (const user of users) {
+      this.cache.set(user.id, user);
+      this.usernameCache.set(user.username, user);
+    }
+    this.lastFetched = Date.now();
+    return users;
   }
 
   create(username: string, password: string, role: UserRole = "user") {
@@ -54,18 +63,30 @@ export class Users {
     });
   }
 
-  updateRole(id: number, role: UserRole) {
-    return this.client.request<{ message: string }>(`/api/users/${id}`, {
+  async updateRole(identifier: UserResolvable, role: UserRole) {
+    const user = await this.get(identifier);
+    if (!user) throw new UserNotFoundError(user);
+    
+    return this.client.request<{ message: string }>(`/api/users/${user.id}`, {
       method: "PUT",
       body: JSON.stringify({ role }),
     });
   }
 
-  delete(id: number) {
-    return this.client.request<{ message: string }>(`/api/users/${id}`, {
+  async delete(identifier: UserResolvable) {
+    const user = await this.get(identifier);
+    if (!user) throw new UserNotFoundError(user);
+
+    return this.client.request<{ message: string }>(`/api/users/${user?.id }`, {
       method: "DELETE",
     });
   }
+}
 
-  
+class UserNotFoundError extends Error {
+  code: string;
+  constructor(user?: UserResolvable) {
+    super(`Could not resolve the requested user${user ? `: ${(user as User)?.id || (user as User)?.username || user}` : ""}`);
+    this.code = "UserNotFound"
+  }
 }
