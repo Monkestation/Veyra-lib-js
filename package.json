@@ -1,0 +1,35 @@
+{
+  "name": "@monkestation/veyra-api",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
+  "files": [
+    "./dist/",
+    "./src/",
+    "./types/",
+    "./package.json",
+    "./README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "lint:fix": "biome check --apply .",
+    "ci:check": "biome check --max-diagnostics 1",
+    "start": "node dist/index.js",
+		"prepublishOnly": "pnpm run build"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.2.4",
+    "biome": "^0.3.3",
+    "tsup": "^8.5.0",
+    "typescript": "^5.0.0"
+  }
+}
