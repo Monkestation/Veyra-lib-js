@@ -1,37 +1,71 @@
 import type { VeyraClient } from "../client.js";
-import { resolveUser } from "../internalClient.js";
-import type { User, UserRole } from "../types.js";
+import type { User, UserResolvable, UserRole } from "../types.js";
 import { processUsers } from "../utils.js";
 
 export class Users {
-	constructor(private client: VeyraClient) {}
+  private cache: Map<number, User> = new Map();
+  private usernameCache: Map<string, User> = new Map();
+  private lastFetched: number = 0;
+  private cacheTTL: number = 5 * 60 * 1000;
 
-	async get(identifier: string | number | User) {
-    return resolveUser(this.client, identifier);
-	}
+  constructor(private client: VeyraClient) {}
 
-	async getAll() {
-		const response = await this.client.request<{ users: User[] }>("/api/users");
-		return processUsers(response.users);
-	}
+  /**
+   * Get user details
+   * @param userResolvable
+   * @param force Forcefully fetch the requested user instead of from cache if available.
+   * @returns {User | undefined}
+   */
+  async get(
+    userResolvable: UserResolvable,
+    force: boolean = false
+  ): Promise<User | undefined> {
+    const isCacheStale =
+      Date.now() - this.lastFetched > this.cacheTTL;
 
-	create(username: string, password: string, role: UserRole = "user") {
-		return this.client.request<{ message: string; id: number }>("/api/users", {
-			method: "POST",
-			body: JSON.stringify({ username, password, role }),
-		});
-	}
+    if (force || this.cache.size === 0 || isCacheStale) {
+      await this.getAll();
+    }
 
-	updateRole(id: number, role: UserRole) {
-		return this.client.request<{ message: string }>(`/api/users/${id}`, {
-			method: "PUT",
-			body: JSON.stringify({ role }),
-		});
-	}
+    if (typeof userResolvable === "object" && userResolvable !== null) {
+      return this.cache.get(userResolvable.id);
+    }
 
-	delete(id: number) {
-		return this.client.request<{ message: string }>(`/api/users/${id}`, {
-			method: "DELETE",
-		});
-	}
+    if (typeof userResolvable === "number") {
+      return this.cache.get(userResolvable);
+    }
+
+    if (typeof userResolvable === "string") {
+      return this.usernameCache.get(userResolvable);
+    }
+
+    return undefined;
+  }
+
+  async getAll() {
+    const response = await this.client.request<{ users: User[] }>("/api/users");
+    return processUsers(response.users);
+  }
+
+  create(username: string, password: string, role: UserRole = "user") {
+    return this.client.request<{ message: string; id: number }>("/api/users", {
+      method: "POST",
+      body: JSON.stringify({ username, password, role }),
+    });
+  }
+
+  updateRole(id: number, role: UserRole) {
+    return this.client.request<{ message: string }>(`/api/users/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ role }),
+    });
+  }
+
+  delete(id: number) {
+    return this.client.request<{ message: string }>(`/api/users/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  
 }

@@ -1,4 +1,5 @@
-import type { User, Verification } from "./types.js";
+import { jwtDecode, JwtPayload } from "jwt-decode";
+import type { User, UserPartial, Verification } from "./types.js";
 
 export async function processUsers(users: User): Promise<User>;
 export async function processUsers(users: User[]): Promise<User[]>;
@@ -44,3 +45,18 @@ export async function processVerifications(
 
   return process(verifications);
 }
+
+type DecodedToken = JwtPayload & UserPartial & {
+  exp: number;
+};
+
+export function isTokenExpired(token?: string) {
+  if (!token) return true;
+  try {
+    const decoded: DecodedToken = jwtDecode(token);
+    const currentTime = Date.now() / 1000;
+    return decoded.exp < currentTime;
+  } catch (_e) {
+    return true;
+  }
+};

@@ -2,6 +2,11 @@ export interface AuthResponse {
 	token: string;
 	user: UserPartial;
 }
+export interface VeyraClientOptions {
+  baseUrl: string;
+  username: string;
+  password: string;
+}
 
 export type UserRole = "user" | "admin";
 
@@ -13,6 +18,7 @@ export interface User {
 }
 
 export type UserPartial = Omit<User, "created_at">;
+export type UserResolvable = number | string | User | UserPartial;
 
 export interface Verification {
 	discord_id: string;
