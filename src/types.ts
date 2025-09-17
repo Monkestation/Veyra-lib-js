@@ -27,7 +27,7 @@ export type VerificationMethod = "manual" | "api" | string;
 export interface APIVerification {
 	discord_id: string;
 	ckey: string;
-	verified_flags: Record<string, boolean>;
+	verified_flags: Record<string, any>;
 	verification_method: VerificationMethod;
 	verified_by: string;
 	created_at: Date;
