@@ -1,12 +1,12 @@
-import { jwtDecode, JwtPayload } from "jwt-decode";
-import type { User, UserPartial, Verification } from "./types.js";
+import type { APIUser, APIUserPartial, APIVerification } from "./types.js";
+import { jwtDecode, type JwtPayload } from "jwt-decode";
 
-export async function processUsers(users: User): Promise<User>;
-export async function processUsers(users: User[]): Promise<User[]>;
-export async function processUsers(
-	users: User | User[],
-): Promise<User | User[]> {
-	const process = (user: User) => {
+export function parseUsers(users: APIUser): APIUser;
+export function parseUsers(users: APIUser[]): APIUser[];
+export function parseUsers(
+	users: APIUser | APIUser[],
+): APIUser | APIUser[] {
+	const process = (user: APIUser) => {
 		return {
 			...user,
 			created_at: new Date(user.created_at),
@@ -20,16 +20,16 @@ export async function processUsers(
 	return process(users);
 }
 
-export async function processVerifications(
-  verifications: Verification
-): Promise<Verification>;
-export async function processVerifications(
-  verifications: Verification[]
-): Promise<Verification[]>;
-export async function processVerifications(
-  verifications: Verification | Verification[]
-): Promise<Verification | Verification[]> {
-  const process = (verification: Verification) => {
+export function parseVerifications(
+  verifications: APIVerification
+): APIVerification;
+export function parseVerifications(
+  verifications: APIVerification[]
+): APIVerification[];
+export function parseVerifications(
+  verifications: APIVerification | APIVerification[]
+): APIVerification | APIVerification[] {
+  const process = (verification: APIVerification) => {
     return {
       ...verification,
       created_at: new Date(verification.created_at),
@@ -46,7 +46,7 @@ export async function processVerifications(
   return process(verifications);
 }
 
-type DecodedToken = JwtPayload & UserPartial & {
+type DecodedToken = JwtPayload & APIUserPartial & {
   exp: number;
 };
 

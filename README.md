@@ -14,23 +14,36 @@ const Veyra = new VeyraClient({
 
 await Veyra.login();
 
+```
 
+## Examples
+
+```ts
 /// -- Users
 
 // Create a new user with the 'user' role
-const newUser = await Veyra.Users.create("username", "password123", "user");
+const newUser = await Veyra.Users.create("username1", "password123", "user");
 
 // Create a new user with the 'admin' role
-const newAdminUser = await Veyra.Users.create("username", "password123", "admin");
+const newAdminUser = await Veyra.Users.create("username2", "password123", "admin");
 
 // Delete a user
-await Veyra.Users.delete(newAdminUser.id);
+await newAdminUser.delete();
+
+// Change role of a user.
+await newAdminUser.updateRole("user");
 
 /// -- Verifications
 
 // Get verification entry by Discord ID
-await Veyra.Verifications.getByDiscord("1291293193913931131");
+const verification = await Veyra.Verifications.getByDiscord("1291293193913931131");
+
+// Update a verification entry
+verification.update({
+  verified_by: newAdminUser.username,
+  verification_method: "manual"
+});
 
 // Get verification entry by ckey
-await Veyra.Verifications.getByCkey("exampleckey492");
+const verificationByCkey = await Veyra.Verifications.getByCkey("exampleckey492");
 ```

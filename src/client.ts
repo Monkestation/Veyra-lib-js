@@ -1,9 +1,9 @@
 import { ActivityLogs } from "./routes/ActivityLogs.js";
 import { Analytics } from "./routes/Analytics.js";
 import { Auth } from "./routes/Auth.js";
-import { Users } from "./routes/Users.js";
+import { type UserInstance, Users } from "./routes/Users.js";
 import { Verifications } from "./routes/Verifications.js";
-import type { User, VeyraClientOptions } from "./types.js";
+import type { VeyraClientOptions } from "./types.js";
 import { isTokenExpired } from "./utils.js";
 
 export class VeyraClient {
@@ -11,7 +11,7 @@ export class VeyraClient {
   private token?: string;
   private username: string;
   private password: string;
-  public currentUser?: User;
+  public currentUser?: UserInstance;
 
   public Auth: Auth;
   public Users: Users;
@@ -35,9 +35,10 @@ export class VeyraClient {
   }
 
   async login() {
-    const {token, user} = await this.Auth.login(this.username, this.password);
+    const { token, user } = await this.Auth.login(this.username, this.password);
     this.token = token;
     this.currentUser = await this.Users.get(user);
+    // This is where I would put my websocket client... IF I HAD ONE!!!
   }
 
   setToken(token: string) {
@@ -54,36 +55,73 @@ export class VeyraClient {
       return headers;
     };
 
-    const attemptRequest = async (token?: string) => {
-      const headers = setAuthorizationHeader(token || this.token || "");
-      const res = await fetch(`${this.baseUrl}${path}`, {
-        ...options,
-        headers,
-      });
-      return res;
-    };
+    const url = new URL(path, this.baseUrl);
+    let retried = false;
 
     if (this.token && isTokenExpired(this.token)) {
       console.log("Token expired. Attempting to refresh.");
       await this.login();
     }
 
-    let res = await attemptRequest(this.token);
+    const attemptRequest = async (token: string) => {
+      const headers = setAuthorizationHeader(token);
+      return fetch(url.toString(), { ...options, headers });
+    };
 
-    if (res.status === 401) {
-      console.log("Unauthorized request. Attempting token refresh and retry.");
+    let res = await attemptRequest(this.token || "");
+
+    if (res.status === 401 && !retried) {
+      retried = true;
       await this.login();
-      res = await attemptRequest(this.token);
+      res = await attemptRequest(this.token || "");
+    }
+
+    const contentType = res.headers.get("Content-Type") || "";
+    let responseBody: any;
+    try {
+      if (contentType.includes("application/json")) {
+        responseBody = await res.json();
+      } else {
+        responseBody = await res.text();
+      }
+    } catch (parseError) {
+      console.error("Failed to parse response body", parseError);
+      // If parsing fails, we'll treat it as an empty body.
+      responseBody = {};
     }
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || err || `Request failed: ${res.status}`);
+      let errorMessage = "Unknown error";
+      if (typeof responseBody === 'object' && responseBody !== null) {
+        // If the body is an object, stringify it for a readable error message
+        errorMessage = JSON.stringify(responseBody, null, 2);
+      } else if (typeof responseBody === 'string' && responseBody.trim() !== "") {
+        // If the body is a non-empty string, use it directly
+        errorMessage = responseBody;
+      }
+
+      // Fallback to a simpler message if the above fails
+      if (res.statusText) {
+        errorMessage = res.statusText;
+      }
+
+      const apiError = new Error(
+        `Request failed: ${res.status} – ${errorMessage}`,
+        {
+          cause: {
+            status: res.status,
+            body: responseBody,
+            url: url.toString(),
+            method: options.method || "GET",
+          },
+        }
+      );
+
+      throw apiError;
     }
 
-    return res.json() as Promise<T>;
+    return responseBody as T;
   }
-
   private normalizeUrl(url: string): string {
     return url.replace(/\/$/, "");
   }
