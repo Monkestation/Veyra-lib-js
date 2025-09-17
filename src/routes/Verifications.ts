@@ -18,7 +18,7 @@ export class VerificationInstance {
     return this.data.ckey;
   }
 
-  get verifiedFlags(): Record<string, boolean> {
+  get verifiedFlags() {
     return this.data.verified_flags;
   }
 
