@@ -69,23 +69,25 @@ export class Users {
   }
 
   async get(userResolvable: UserResolvable): Promise<UserInstance | undefined> {
-    const all = await this.getAll();
+    let idOrUsername: string | number;
 
     if (typeof userResolvable === "object" && userResolvable !== null) {
-      return this.registry.get(userResolvable.id);
+      idOrUsername = userResolvable.id;
+    } else {
+      idOrUsername = userResolvable;
     }
 
-    if (typeof userResolvable === "number") {
-      return this.registry.get(userResolvable);
-    }
-
-    if (typeof userResolvable === "string") {
-      return [...this.registry.values()].find(
-        (user) => user.username === userResolvable
+    try {
+      const user = await this.client.request<APIUser>(
+        `/api/users/${idOrUsername}`
       );
+      return this.createInstance(user);
+    } catch (err) {
+      if ((err as any)?.cause.status === 404) {
+        return;
+      }
+      throw err;
     }
-
-    return undefined;
   }
 
   async getAll(): Promise<UserInstance[]> {
@@ -129,12 +131,11 @@ export class Users {
     if (!user) throw new UserNotFoundError(identifier);
 
     if (user.deleted) {
-      if (this.registry.has(user.id))
-        this.registry.delete(user.id);
+      if (this.registry.has(user.id)) this.registry.delete(user.id);
       user.deleted = true;
       return;
     }
-    
+
     user.deleted = true;
 
     await this.client.request<{ message: string }>(`/api/users/${user.id}`, {

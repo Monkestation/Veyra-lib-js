@@ -47,6 +47,10 @@ export class VerificationInstance {
     const latest = await this.verificationsManager.getByDiscord(
       this.discordId,
     );
+    if (!latest) {
+      this.deleted = true;
+      return this;
+    }
     this.data = latest.data;
     return this;
   }
@@ -95,18 +99,30 @@ export class Verifications {
     return this.registryByCkey.get(ckey);
   }
 
-  async getByDiscord(discordId: string): Promise<VerificationInstance> {
-    const verification = await this.client.request<APIVerification>(
-      `/api/v1/verify/${discordId}`
-    );
-    return this.createInstance(parseVerifications(verification));
+  async getByDiscord(discordId: string): Promise<VerificationInstance | undefined> {
+    try {
+      const verification = await this.client.request<APIVerification>(
+        `/api/v1/verify/${discordId}`
+      );
+      return this.createInstance(parseVerifications(verification));
+    } catch (error) {
+      if ((error as {cause: {status: number }}).cause.status === 404) 
+        return;
+      throw error;
+    }
   }
 
-  async getByCkey(ckey: string): Promise<VerificationInstance> {
-    const verification = await this.client.request<APIVerification>(
-      `/api/v1/verify/ckey/${ckey}`
-    );
-    return this.createInstance(parseVerifications(verification));
+  async getByCkey(ckey: string): Promise<VerificationInstance | undefined> {
+    try {
+      const verification = await this.client.request<APIVerification>(
+        `/api/v1/verify/ckey/${ckey}`
+      );
+      return this.createInstance(parseVerifications(verification));
+    } catch (error) {
+      if ((error as { cause: { status: number } }).cause.status === 404) return;
+      throw error;
+    }
+
   }
 
   async bulkByDiscord(discordIds: string[]): Promise<VerificationInstance[]> {
@@ -165,7 +181,7 @@ export class Verifications {
         body: JSON.stringify(payload),
       }
     );
-    return await this.getByDiscord(payload.discord_id);
+    return (await this.getByDiscord(payload.discord_id))!;
   }
 
   async updateDiscord(discordId: string, updates: Partial<APIVerification>) {

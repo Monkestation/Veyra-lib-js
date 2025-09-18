@@ -92,7 +92,7 @@ describe("Veyra Client Tests", function () {
       // Install dependencies for Veyra server
       console.log("Installing Veyra dependencies...");
       await new Promise((resolve, reject) => {
-        exec("npm install", { cwd: veyraDir }, (error, stdout, stderr) => {
+        exec("pnpm install", { cwd: veyraDir }, (error, stdout, stderr) => {
           if (error) {
             console.error(`npm install failed: ${error.message}`);
             return reject(error);
@@ -105,18 +105,10 @@ describe("Veyra Client Tests", function () {
 
       // Start the Veyra server
       console.log("Starting Veyra server...");
-      veyraServerProcess = spawn("npm", ["run", "dev"], { cwd: veyraDir });
-
-      veyraServerProcess.stdout.on("data", (data) => {
-        console.log(`Veyra stdout: ${data}`);
-      });
-
-      veyraServerProcess.stderr.on("data", (data) => {
-        console.error(`Veyra stderr: ${data}`);
-      });
-
-      veyraServerProcess.on("error", (error) => {
-        console.error(`Failed to start Veyra server: ${error}`);
+      veyraServerProcess = spawn("pnpm", ["run", "dev"], {
+        cwd: veyraDir,
+        detached: true,
+        stdio: "ignore",
       });
 		}
 
@@ -128,11 +120,18 @@ describe("Veyra Client Tests", function () {
 	});
 
 	after(async () => {
-		console.log("Stopping Veyra server...");
-		if (veyraServerProcess) {
-			veyraServerProcess.kill();
-		}
-	});
+    console.log("Stopping Veyra server...");
+    if (veyraServerProcess) {
+      // Kill the entire process group
+      try {
+        process.kill(-veyraServerProcess.pid, "SIGKILL");
+        console.log(`Killed process group ${veyraServerProcess.pid}`);
+      } catch (e) {
+        console.error(`Failed to kill process group: ${e.message}`);
+      }
+    }
+  });
+
 
 	// --- Verifications Tests ---
 	describe("Verifications", () => {
@@ -305,7 +304,7 @@ describe("Veyra Client Tests", function () {
 			} catch (e) {
 				expect(e.message).to.include("404");
 			}
-			expect(deletedVer).to.be.null;
+			expect(deletedVer).to.be.undefined;
 		});
 
 		it("should not be able to update a deleted verification", async () => {
@@ -321,6 +320,12 @@ describe("Veyra Client Tests", function () {
 				expect(e.message).to.include("404");
 			}
 		});
+
+		it("should return undefined when getting a user that doesnt exist", async () => {
+			ver = await Veyra.Verifications.getByCkey("blahblah");
+
+			expect(ver).to.be.undefined;
+		})
 	});
 
 	// --- Users Tests ---
