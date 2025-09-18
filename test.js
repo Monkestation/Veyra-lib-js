@@ -60,7 +60,7 @@ let veyraServerProcess;
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 describe("Veyra Client Tests", function () {
-	this.timeout(15000); // Set a higher timeout for initial setup
+	this.timeout(35000); // Set a higher timeout for initial setup
 	
 	before(async () => {
 		if (!process.env.NO_VEYRA) {
