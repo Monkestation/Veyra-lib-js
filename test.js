@@ -1,3 +1,4 @@
+console.log("THIS IS NOT MAKING ME FEEL VERY FUCKING HAPPY");
 import { exec, spawn } from "node:child_process";
 import fs from "node:fs";
 import net from "node:net";
@@ -59,14 +60,15 @@ let veyraServerProcess;
 // Utility function to introduce a delay
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+
 describe("Veyra Client Tests", function () {
-	this.timeout(35000); // Set a higher timeout for initial setup
+	this.timeout(60_000);
 	
 	before(async () => {
 		if (!process.env.NO_VEYRA) {
 			console.log("Setting up Veyra server...");
 			const veyraDir = path.join(process.cwd(), "Veyra");
-			
+
 			// Check if Veyra is already cloned
 			if (!fs.existsSync(veyraDir)) {
 				console.log("Cloning Veyra repository...");
@@ -81,12 +83,12 @@ describe("Veyra Client Tests", function () {
 							console.log(`stdout: ${stdout}`);
 							console.error(`stderr: ${stderr}`);
 							resolve();
-						}
+						},
 					);
 				});
 				await delay(5000);
 			}
-			
+
 			// pull the latest changes
 			console.log("Pulling latest changes for Veyra repository...");
 			await new Promise((resolve, reject) => {
@@ -100,7 +102,7 @@ describe("Veyra Client Tests", function () {
 					resolve();
 				});
 			});
-			
+
 			console.log("Resetting Veyra repository to a clean state...");
 			await new Promise((resolve, reject) => {
 				exec("git reset --hard", { cwd: veyraDir }, (error, stdout, stderr) => {
@@ -113,7 +115,7 @@ describe("Veyra Client Tests", function () {
 					resolve();
 				});
 			});
-			
+
 			// Remove any existing .db files
 			const files = fs.readdirSync(veyraDir);
 			for (const file of files) {
@@ -122,31 +124,51 @@ describe("Veyra Client Tests", function () {
 					console.log(`Deleted existing database file: ${file}`);
 				}
 			}
-			
+
 			// Wait a moment to ensure filesystem operations complete
 			await delay(1000);
-			
+
 			// Install dependencies for Veyra server
 			console.log("Installing Veyra dependencies...");
+			const installProcess = spawn("npm", ["install"], {
+				cwd: veyraDir,
+				stdio: "overlapped"
+			});
 			await new Promise((resolve, reject) => {
-				exec("pnpm install", { cwd: veyraDir }, (error, stdout, stderr) => {
-					if (error) {
-						console.error(`npm install failed: ${error.message}`);
-						return reject(error);
+				installProcess.on("close", (code) => {
+					if (code === 0) {
+						console.log("Veyra dependencies installed successfully.");
+						resolve();
+					} else {
+						reject(
+							new Error(
+								`Veyra dependency installation failed with code ${code}`,
+							),
+						);
 					}
-					console.log(`stdout: ${stdout}`);
-					console.error(`stderr: ${stderr}`);
-					resolve();
 				});
 			});
-			
+
 			// Start the Veyra server
 			console.log("Starting Veyra server...");
-			veyraServerProcess = spawn("pnpm", ["run", "dev"], {
+			veyraServerProcess = spawn("pnpm", ["run", "start"], {
 				cwd: veyraDir,
 				detached: true,
-				stdio: "ignore",
 			});
+
+			veyraServerProcess.stdout.on("data", (data) => {
+			  console.log(`Veyra stdout: ${data}`);
+			});
+
+			veyraServerProcess.stderr.on("data", (data) => {
+			  console.error(`Veyra stderr: ${data}`);
+			});
+
+			veyraServerProcess.on("error", (error) => {
+			  console.error(`Failed to start Veyra server: ${error}`);
+			});
+
+			veyraServerProcess.unref();
 		}
 		
 		console.log("Waiting for Veyra server to start...");
