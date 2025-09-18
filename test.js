@@ -1,4 +1,3 @@
-console.log("THIS IS NOT MAKING ME FEEL VERY FUCKING HAPPY");
 import { exec, spawn } from "node:child_process";
 import fs from "node:fs";
 import net from "node:net";
