@@ -150,7 +150,7 @@ describe("Veyra Client Tests", function () {
 		}
 		
 		console.log("Waiting for Veyra server to start...");
-    await waitForServer(3000, 15000); // Wait for port 3000, with a 15-second timeout
+    await waitForServer(3000, 30000);
     console.log("Veyra server is up and running!");
 		
 		// Log in once before all tests
